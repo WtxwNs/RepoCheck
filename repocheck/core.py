@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import ast
 import json
@@ -199,7 +199,7 @@ def resolve_source(source):
 
 def iter_repo_files(root):
     for path in sorted(Path(root).rglob('*')):
-        if not path.is_file():
+        if path.is_symlink() or not path.is_file():
             continue
         if any(part in IGNORE_DIRS for part in path.parts):
             continue
@@ -988,10 +988,22 @@ def command_args(command, env_python=None):
     return args
 
 
+def internal_path(root, *parts):
+    """Keep generated audit data inside the repository, without following links."""
+    root = Path(root).resolve()
+    path = root
+    for part in ('.repocheck', *parts):
+        path = path / part
+        if path.is_symlink():
+            raise ValueError(f'Refusing symlink in audit output path: {path}')
+    path.resolve().relative_to(root)
+    return path
+
+
 def run_smoke(manifest, recipe):
-    runtime_dir = Path(manifest.root_path) / '.repocheck' / 'runtime'
+    runtime_dir = internal_path(manifest.root_path, 'runtime')
     runtime_dir.mkdir(parents=True, exist_ok=True)
-    venv_dir = runtime_dir / 'smoke'
+    venv_dir = Path(tempfile.mkdtemp(prefix='smoke_', dir=runtime_dir))
     builder = venv.EnvBuilder(with_pip=False)
     builder.create(venv_dir)
     python_bin = venv_dir / 'Scripts' / 'python.exe'
@@ -1053,7 +1065,7 @@ def write_json_report(report, path):
 
 
 def write_cache(report):
-    cache_path = Path(report.manifest.root_path) / '.repocheck' / 'cache' / 'last_report.json'
+    cache_path = internal_path(report.manifest.root_path, 'cache', 'last_report.json')
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     cache_path.write_text(json.dumps(report_payload(report), indent=2, ensure_ascii=False), encoding='utf-8-sig')
 
@@ -1062,8 +1074,8 @@ def write_html_report(report, path):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     body = html.escape(render_terminal(report))
-    text = '__LT__html__GT____LT__meta charset="utf-8"__GT____LT__title__GT__RepoCheck Report__LT__/title__GT____LT__body__GT____LT__h1__GT__RepoCheck Report__LT__/h1__GT____LT__pre__GT__' + body + '__LT__/pre__GT____LT__/body__GT____LT__/html__GT__'
-    path.write_text(text.replace('__LT__', chr(60)).replace('__GT__', chr(62)), encoding='utf-8-sig')
+    text = '<!doctype html><html><meta charset="utf-8"><title>RepoCheck Report</title><body><h1>RepoCheck Report</h1><pre>' + body + '</pre></body></html>'
+    path.write_text(text, encoding='utf-8-sig')
 
 
 def audit_source(source, mode='fast', use_cache=True):
@@ -1079,6 +1091,7 @@ def audit_source(source, mode='fast', use_cache=True):
 	smoke = run_smoke(manifest, recipe) if mode in {'smoke', 'full'} and recipe else None
 	score, summary = score_report(findings)
 	report = AuditReport(manifest=manifest, findings=findings, score=score, risk_summary=summary, generated_at=now_iso(), mode=mode, analysis=analysis, recipe=recipe, smoke=smoke, cache_hit=False)
-	write_cache(report)
+	if use_cache:
+		write_cache(report)
 	return report
 
