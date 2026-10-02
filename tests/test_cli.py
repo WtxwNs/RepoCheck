@@ -1,8 +1,10 @@
-﻿import shutil
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
 from repocheck.core import audit_source
+from repocheck.core import iter_repo_files
 from repocheck.core import write_html_report
 from repocheck.core import write_json_report
 
@@ -34,10 +36,9 @@ class AuditTests(unittest.TestCase):
 	def test_report_writers_and_smoke(self):
 		report = audit_source(str(SAMPLE_FIXTURE), mode='smoke')
 		self.assertIsNotNone(report.smoke)
-		output_dir = Path(__file__).parent / '_tmp_output'
-		if output_dir.exists():
-			shutil.rmtree(output_dir)
-		output_dir.mkdir(parents=True, exist_ok=True)
+		temporary = tempfile.TemporaryDirectory()
+		self.addCleanup(temporary.cleanup)
+		output_dir = Path(temporary.name)
 		json_path = output_dir / 'report.json'
 		html_path = output_dir / 'report.html'
 		write_json_report(report, json_path)

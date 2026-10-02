@@ -1,4 +1,4 @@
-﻿# RepoCheck
+# RepoCheck
 
 [English](./README.md) / [简体中文](./README.zh-CN.md)
 
@@ -142,3 +142,6 @@ python -m repocheck check tests/fixtures/sample_project --report all
 ## Contributing
 
 If there are any important judgment criteria that haven't been mentioned, PRs are welcome!
+
+
+Smoke mode executes repository-provided code with your user privileges. A virtual environment isolates Python packages, not files, credentials, network, or processes. Only run smoke checks on code you trust; use a separately sandboxed container for untrusted repositories.

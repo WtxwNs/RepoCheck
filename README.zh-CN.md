@@ -1,4 +1,4 @@
-﻿# RepoCheck
+# RepoCheck
 
 [English](./README.md) / [简体中文](./README.zh-CN.md)
 
@@ -134,3 +134,6 @@ python -m repocheck check tests/fixtures/sample_project --report all
 ## 贡献
 
 如果有什么很重要的判定要素没有提及，欢迎PR！
+
+
+Smoke 模式会以当前用户权限执行仓库提供的代码。Python 虚拟环境只隔离依赖，并不隔离文件、凭据、网络或进程。仅对可信代码运行 smoke 检查；不可信仓库应放入单独的沙箱容器。
